@@ -1,13 +1,13 @@
 use macroquad::prelude::*;
 
 const DT: f32 = 1. / 24.;
-const GRAVITY: Vec2 = vec2(0., 500.);
-const RADIUS: f32 = 5.;
-const CELL_SIZE: f32 = 12.;
+const GRAVITY: Vec2 = vec2(0., 300.);
+const RADIUS: f32 = 8.;
+const CELL_SIZE: f32 = 20.;
 
 const OVER_RELAXATION: f32 = 1.9;
-const DENSITY_STIFFNESS: f32 = 3.;
-const FLIP_RATIO: f32 = 0.98;
+const DENSITY_STIFFNESS: f32 = 1.;
+const FLIP_RATIO: f32 = 0.9;
 
 struct Particle {
     pos: Vec2,
@@ -61,14 +61,6 @@ impl MacGrid {
         }
     }
 
-    fn iu(&self, i: usize, j: usize) -> usize {
-        i + j * (self.nx + 1)
-    }
-
-    fn iv(&self, i: usize, j: usize) -> usize {
-        i + j * self.nx
-    }
-
     fn clear(&mut self) {
         self.u.fill(0.);
         self.v.fill(0.);
@@ -91,7 +83,41 @@ impl MacGrid {
     }
 }
 
+fn simulate_particles(particles: &mut [Particle], grid: &MacGrid) {
+    for p in particles {
+        p.vel += GRAVITY * DT;
+        p.pos += p.vel * DT;
+
+        // Wall collision detection: ensure particle center is in a non-wall cell
+        // Wall cells are at i=0, i=nx-1, j=0, j=ny-1
+        let min_water_x = CELL_SIZE + RADIUS;
+        let max_water_x = (grid.nx - 1) as f32 * CELL_SIZE - RADIUS;
+        let min_water_y = CELL_SIZE + RADIUS;
+        let max_water_y = (grid.ny - 1) as f32 * CELL_SIZE - RADIUS;
+
+        if p.pos.x < min_water_x {
+            p.pos.x = min_water_x;
+            p.vel.x = 0.;
+        }
+        if p.pos.x > max_water_x {
+            p.pos.x = max_water_x;
+            p.vel.x = 0.;
+        }
+        if p.pos.y < min_water_y {
+            p.pos.y = min_water_y;
+            p.vel.y = 0.;
+        }
+        if p.pos.y > max_water_y {
+            p.pos.y = max_water_y;
+            p.vel.y = 0.;
+        }
+    }
+}
+
 fn particles_to_grid(particles: &[Particle], grid: &mut MacGrid) {
+    let iu = |i, j| i + j * (grid.nx + 1);
+    let iv = |i, j| i + j * grid.nx;
+
     for p in particles {
         // cell type
         let i = (p.pos.x / CELL_SIZE).floor() as usize;
@@ -120,7 +146,7 @@ fn particles_to_grid(particles: &[Particle], grid: &mut MacGrid) {
                 let wy = 1. - (y - j as f32).abs();
                 let w = wx * wy;
 
-                let idx = grid.iu(i as usize, j as usize);
+                let idx = iu(i as usize, j as usize);
                 grid.u[idx] += p.vel.x * w;
                 grid.wu[idx] += w;
             }
@@ -146,7 +172,7 @@ fn particles_to_grid(particles: &[Particle], grid: &mut MacGrid) {
                 let wy = 1. - (y - j as f32).abs();
                 let w = wx * wy;
 
-                let idx = grid.iv(i as usize, j as usize);
+                let idx = iv(i as usize, j as usize);
                 grid.v[idx] += p.vel.y * w;
                 grid.wv[idx] += w;
             }
@@ -191,9 +217,30 @@ fn compute_particle_density(particles: &[Particle], grid: &mut MacGrid) {
             }
         }
     }
+
+    if grid.rest_density == 0. {
+        let mut total_density = 0.;
+        let mut water_cell_count = 0;
+
+        for j in 0..grid.ny {
+            for i in 0..grid.nx {
+                if grid.cell_type[i + j * grid.nx] == CellType::Water {
+                    total_density += grid.density[i + j * grid.nx];
+                    water_cell_count += 1;
+                }
+            }
+        }
+
+        if water_cell_count > 0 {
+            grid.rest_density = total_density / water_cell_count as f32;
+        }
+    }
 }
 
 fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32], v_prev: &[f32]) {
+    let iu = |i, j| i + j * (grid.nx + 1);
+    let iv = |i, j| i + j * grid.nx;
+
     for p in particles {
         // transfer u
         let x = p.pos.x / CELL_SIZE;
@@ -218,8 +265,9 @@ fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32],
                 let wy = 1. - (y - j as f32).abs();
                 let w = wx * wy;
 
-                ux += grid.u[grid.iu(i as usize, j as usize)] * w;
-                ux_prev += u_prev[grid.iu(i as usize, j as usize)] * w;
+                let idx = iu(i as usize, j as usize);
+                ux += grid.u[idx] * w;
+                ux_prev += u_prev[idx] * w;
             }
         }
 
@@ -246,8 +294,9 @@ fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32],
                 let wy = 1. - (y - j as f32).abs();
                 let w = wx * wy;
 
-                vy += grid.v[grid.iv(i as usize, j as usize)] * w;
-                vy_prev += v_prev[grid.iv(i as usize, j as usize)] * w;
+                let idx = iv(i as usize, j as usize);
+                vy += grid.v[idx] * w;
+                vy_prev += v_prev[idx] * w;
             }
         }
 
@@ -261,8 +310,8 @@ fn spawn_particles(n: usize) -> Vec<Particle> {
     let mut particles = Vec::with_capacity(n);
 
     for i in 0..n {
-        let x = 100. + (i as f32 % 50.) * 12.;
-        let y = 50. + (i as f32 / 50.).floor() * 12.;
+        let x = 100. + (i as f32 % 50.) * 15.;
+        let y = 50. + (i as f32 / 50.).floor() * 15.;
 
         particles.push(Particle {
             pos: vec2(x, y),
@@ -273,27 +322,9 @@ fn spawn_particles(n: usize) -> Vec<Particle> {
     particles
 }
 
+#[inline]
 fn b2f(b: bool) -> f32 {
     if b { 1. } else { 0. }
-}
-
-fn compute_rest_density(grid: &mut MacGrid) {
-    // Average density of water cells
-    let mut total_density = 0.;
-    let mut water_cell_count = 0;
-
-    for j in 0..grid.ny {
-        for i in 0..grid.nx {
-            if grid.cell_type[i + j * grid.nx] == CellType::Water {
-                total_density += grid.density[i + j * grid.nx];
-                water_cell_count += 1;
-            }
-        }
-    }
-
-    if water_cell_count > 0 {
-        grid.rest_density = total_density / water_cell_count as f32;
-    }
 }
 
 fn solve_incompressibility(grid: &mut MacGrid) {
@@ -304,7 +335,7 @@ fn solve_incompressibility(grid: &mut MacGrid) {
     let iu = |i, j| i + j * (nx + 1);
     let iv = |i, j| i + j * nx;
 
-    for _ in 0..1 {
+    for _ in 0..5 {
         for j in 0..grid.ny {
             for i in 0..grid.nx {
                 if grid.cell_type[i + j * nx] != CellType::Water {
@@ -322,9 +353,8 @@ fn solve_incompressibility(grid: &mut MacGrid) {
                 }
 
                 let mut d = OVER_RELAXATION
-                    * (grid.u[grid.iu(i + 1, j)] - grid.u[grid.iu(i, j)]
-                        + grid.v[grid.iv(i, j + 1)]
-                        - grid.v[grid.iv(i, j)]);
+                    * (grid.u[iu(i + 1, j)] - grid.u[iu(i, j)] + grid.v[iv(i, j + 1)]
+                        - grid.v[iv(i, j)]);
 
                 d -= DENSITY_STIFFNESS * (grid.density[i + j * nx] - grid.rest_density);
 
@@ -333,40 +363,6 @@ fn solve_incompressibility(grid: &mut MacGrid) {
                 grid.v[iv(i, j)] += d * s_t / s;
                 grid.v[iv(i, j + 1)] -= d * s_b / s;
             }
-        }
-    }
-}
-
-fn simulate_particles(particles: &mut [Particle], w: f32, h: f32) {
-    let nx = (w / CELL_SIZE).ceil() as usize;
-    let ny = (h / CELL_SIZE).ceil() as usize;
-
-    for p in particles {
-        p.vel += GRAVITY * DT;
-        p.pos += p.vel * DT;
-
-        // Wall collision detection: ensure particle center is in a non-wall cell
-        // Wall cells are at i=0, i=nx-1, j=0, j=ny-1
-        let min_water_x = CELL_SIZE + RADIUS;
-        let max_water_x = (nx - 1) as f32 * CELL_SIZE - RADIUS;
-        let min_water_y = CELL_SIZE + RADIUS;
-        let max_water_y = (ny - 2) as f32 * CELL_SIZE - RADIUS;
-
-        if p.pos.x < min_water_x {
-            p.pos.x = min_water_x;
-            p.vel.x = 0.;
-        }
-        if p.pos.x > max_water_x {
-            p.pos.x = max_water_x;
-            p.vel.x = 0.;
-        }
-        if p.pos.y < min_water_y {
-            p.pos.y = min_water_y;
-            p.vel.y = 0.;
-        }
-        if p.pos.y > max_water_y {
-            p.pos.y = max_water_y;
-            p.vel.y = 0.;
         }
     }
 }
@@ -390,15 +386,12 @@ async fn main() {
             grid.clear();
         }
 
-        simulate_particles(&mut particles, w, h);
+        simulate_particles(&mut particles, &grid);
 
         particles_to_grid(&particles, &mut grid);
 
         compute_particle_density(&particles, &mut grid);
 
-        compute_rest_density(&mut grid);
-
-        // save pre-pressure grid velocities for FLIP update
         let u_prev = grid.u.clone();
         let v_prev = grid.v.clone();
 
