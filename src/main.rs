@@ -18,13 +18,14 @@ use simulation::{
 #[cfg(target_arch = "wasm32")]
 unsafe extern "C" {
     fn get_accel_x() -> f64;
+    fn get_accel_y() -> f64;
     fn get_accel_z() -> f64;
 }
 
 fn get_acceleration() -> Vec2 {
     #[cfg(target_arch = "wasm32")]
     unsafe {
-        vec2(get_accel_x() as f32 * 100., get_accel_z() as f32 * 100.)
+        vec2(get_accel_x() as f32 * 100., get_accel_y() as f32 * 100.)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
