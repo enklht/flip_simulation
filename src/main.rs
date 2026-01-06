@@ -1,9 +1,10 @@
-use macroquad::prelude::*;
+use macroquad::{miniquad::window::screen_size, prelude::*};
+use std::collections::HashMap;
 
 const DT: f32 = 1. / 24.;
 const GRAVITY: Vec2 = vec2(0., 300.);
-const RADIUS: f32 = 8.;
-const CELL_SIZE: f32 = 20.;
+const RADIUS: f32 = 5.;
+const CELL_SIZE: f32 = 10.;
 
 const OVER_RELAXATION: f32 = 1.9;
 const DENSITY_STIFFNESS: f32 = 1.;
@@ -83,13 +84,61 @@ impl MacGrid {
     }
 }
 
-fn simulate_particles(particles: &mut [Particle], grid: &MacGrid) {
+fn integrate_particles(particles: &mut [Particle]) {
     for p in particles {
         p.vel += GRAVITY * DT;
         p.pos += p.vel * DT;
+    }
+}
 
-        // Wall collision detection: ensure particle center is in a non-wall cell
-        // Wall cells are at i=0, i=nx-1, j=0, j=ny-1
+fn push_particles_apart(particles: &mut [Particle]) {
+    let mut map = HashMap::<(usize, usize), Vec<usize>>::new();
+
+    for (i, p) in particles.iter().enumerate() {
+        let cell = (
+            (p.pos.x / CELL_SIZE).floor() as usize,
+            (p.pos.y / CELL_SIZE).floor() as usize,
+        );
+        map.entry(cell).or_default().push(i);
+    }
+
+    for _ in 0..3 {
+        for i in 0..particles.len() {
+            let cell = (
+                (particles[i].pos.x / CELL_SIZE).floor() as usize,
+                (particles[i].pos.y / CELL_SIZE).floor() as usize,
+            );
+
+            for x in cell.0.saturating_sub(1)..=cell.0 + 1 {
+                for y in cell.1.saturating_sub(1)..=cell.1 + 1 {
+                    let Some(neighbours) = map.get(&(x, y)) else {
+                        continue;
+                    };
+
+                    for &j in neighbours {
+                        if j <= i {
+                            continue;
+                        }
+
+                        let delta = particles[j].pos - particles[i].pos;
+                        let d = delta.length();
+                        if d == 0. || d >= 2. * RADIUS {
+                            continue;
+                        }
+
+                        let s = 0.5 * (2. * RADIUS - d) / d;
+
+                        particles[i].pos -= delta * s;
+                        particles[j].pos += delta * s;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn handle_particle_collisions(particles: &mut [Particle], grid: &MacGrid) {
+    for p in particles {
         let min_water_x = CELL_SIZE + RADIUS;
         let max_water_x = (grid.nx - 1) as f32 * CELL_SIZE - RADIUS;
         let min_water_y = CELL_SIZE + RADIUS;
@@ -310,8 +359,8 @@ fn spawn_particles(n: usize) -> Vec<Particle> {
     let mut particles = Vec::with_capacity(n);
 
     for i in 0..n {
-        let x = 100. + (i as f32 % 50.) * 15.;
-        let y = 50. + (i as f32 / 50.).floor() * 15.;
+        let x = 100. + (i as f32 % 50.) * CELL_SIZE;
+        let y = 50. + (i as f32 / 50.).floor() * CELL_SIZE;
 
         particles.push(Particle {
             pos: vec2(x, y),
@@ -367,10 +416,26 @@ fn solve_incompressibility(grid: &mut MacGrid) {
     }
 }
 
+fn render(particles: &[Particle], grid: &MacGrid) {
+    for j in 0..grid.ny {
+        for i in 0..grid.nx {
+            if grid.cell_type[i + j * grid.nx] == CellType::Wall {
+                let x = i as f32 * CELL_SIZE;
+                let y = j as f32 * CELL_SIZE;
+                let color = Color::new(0.5, 0.5, 0.5, 1.0);
+                draw_rectangle(x, y, CELL_SIZE, CELL_SIZE, color);
+            }
+        }
+    }
+
+    for p in particles {
+        draw_circle(p.pos.x, p.pos.y, RADIUS, SKYBLUE);
+    }
+}
+
 #[macroquad::main("FLIP")]
 async fn main() {
-    let mut w = screen_width();
-    let mut h = screen_height();
+    let (mut w, mut h) = screen_size();
 
     let mut particles = spawn_particles(10000);
     let mut grid = MacGrid::new(w, h);
@@ -378,15 +443,18 @@ async fn main() {
     loop {
         clear_background(BLACK);
 
-        if w != screen_width() || h != screen_height() {
-            w = screen_width();
-            h = screen_height();
+        let new_size = screen_size();
+        if (w, h) != new_size {
+            (w, h) = new_size;
             grid = MacGrid::new(w, h);
         } else {
             grid.clear();
         }
+        grid.clear();
 
-        simulate_particles(&mut particles, &grid);
+        integrate_particles(&mut particles);
+        push_particles_apart(&mut particles);
+        handle_particle_collisions(&mut particles, &grid);
 
         particles_to_grid(&particles, &mut grid);
 
@@ -399,23 +467,8 @@ async fn main() {
 
         grid_to_particles(&mut particles, &grid, &u_prev, &v_prev);
 
-        for j in 0..grid.ny {
-            for i in 0..grid.nx {
-                let cell_type = &grid.cell_type[i + j * grid.nx];
-                let color = match cell_type {
-                    CellType::Air => Color::new(0.1, 0.1, 0.1, 1.0),
-                    CellType::Water => Color::new(0.0, 0.5, 1.0, 1.0),
-                    CellType::Wall => Color::new(0.5, 0.5, 0.5, 1.0),
-                };
-                let x = i as f32 * CELL_SIZE;
-                let y = j as f32 * CELL_SIZE;
-                draw_rectangle(x, y, CELL_SIZE, CELL_SIZE, color);
-            }
-        }
+        render(&particles, &grid);
 
-        for p in &mut particles {
-            draw_circle(p.pos.x, p.pos.y, RADIUS, SKYBLUE);
-        }
         next_frame().await
     }
 }
