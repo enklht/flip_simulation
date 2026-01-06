@@ -85,7 +85,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "flip_macroquad"
+name = "flip_simulation"
 version = "0.1.0"
 dependencies = [
  "macroquad",
