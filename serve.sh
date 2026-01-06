@@ -11,4 +11,3 @@ echo "Starting local server..."
 echo "Visit http://localhost:8000 to test"
 cd dist
 python3 -m http.server 8000
-

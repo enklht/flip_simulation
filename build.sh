@@ -16,7 +16,7 @@ cp target/wasm32-unknown-unknown/release/flip_simulation.wasm dist/
 
 # Copy and update index.html for dist
 echo "Updating index.html for deployment..."
-sed 's|target/wasm32-unknown-unknown/release/|./|g' index.html >dist/index.html
+cp index.html dist/index.html
 
 echo "✅ Build complete! Files ready in dist/:"
 ls -la dist/
@@ -25,4 +25,3 @@ echo ""
 echo "To test locally:"
 echo "  cd dist && python3 -m http.server 8000"
 echo "  # Then visit http://localhost:8000"
-

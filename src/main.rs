@@ -15,6 +15,24 @@ use simulation::{
     compute_particle_density, grid_to_particles, particles_to_grid, solve_incompressibility,
 };
 
+#[cfg(target_arch = "wasm32")]
+unsafe extern "C" {
+    fn get_accel_x() -> f64;
+    fn get_accel_z() -> f64;
+}
+
+fn get_acceleration() -> Vec2 {
+    #[cfg(target_arch = "wasm32")]
+    unsafe {
+        vec2(get_accel_x() as f32, get_accel_z() as f32)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        vec2(0., 1000.)
+    }
+}
+
 #[macroquad::main("FLIP")]
 async fn main() {
     let (mut w, mut h) = screen_size();
@@ -51,6 +69,6 @@ async fn main() {
 
         render(&particles, &grid);
 
-        next_frame().await
+        next_frame().await;
     }
 }

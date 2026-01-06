@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 use std::collections::HashMap;
 
-use crate::constants::{CELL_SIZE, DT, GRAVITY, RADIUS, SEPARATION_STEPS};
+use crate::constants::{CELL_SIZE, DT, RADIUS, SEPARATION_STEPS};
 use crate::grid::MacGrid;
 
 pub struct Particle {
@@ -11,7 +11,7 @@ pub struct Particle {
 
 pub fn integrate_particles(particles: &mut [Particle]) {
     for p in particles {
-        p.vel += GRAVITY * DT;
+        p.vel += crate::get_acceleration() * DT;
         p.pos += p.vel * DT;
     }
 }

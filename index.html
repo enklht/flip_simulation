@@ -17,13 +17,51 @@
             z-index: 0;
         }
     </style>
+
 </head>
 
 <body>
     <canvas id="glcanvas" tabindex='1'></canvas>
     <!-- Minified and statically hosted version of https://github.com/not-fl3/macroquad/blob/master/js/mq_js_bundle.js -->
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
-    <script>load("target/wasm32-unknown-unknown/release/flip_simulation.wasm");</script> <!-- Your compiled wasm file -->
+
+    <script>
+        let accel_x = 0.0;
+        let accel_z = 0.0;
+
+        async function requestMotionPermissionIfNeeded() {
+            if (
+                typeof DeviceMotionEvent !== "undefined" &&
+                typeof DeviceMotionEvent.requestPermission === "function"
+            ) {
+                const response = await DeviceMotionEvent.requestPermission();
+                if (response !== "granted") {
+                    alert("Motion permission denied");
+                }
+            }
+        }
+
+        window.addEventListener("click", () => {
+            requestMotionPermissionIfNeeded();
+        });
+
+        window.addEventListener("devicemotion", (event) => {
+            const g = event.accelerationIncludingGravity;
+            if (event.accelerationIncludingGravity) {
+                accel_x = g.x || 0.0;
+                accel_z = g.z || 1000.0;
+            }
+        });
+
+        register_plugin = function (importObject) {
+            importObject.env.get_accel_x = () => accel_x;
+            importObject.env.get_accel_z = () => accel_z;
+        };
+
+        miniquad_add_plugin({ register_plugin });
+    </script>
+
+    <script>load("./flip_simulation.wasm");</script>
 </body>
 
 </html>

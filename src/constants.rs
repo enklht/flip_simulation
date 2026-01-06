@@ -1,5 +1,6 @@
+use macroquad::prelude::*;
+
 pub const DT: f32 = 1. / 60.;
-pub const GRAVITY: macroquad::prelude::Vec2 = macroquad::prelude::vec2(0., 1000.);
 pub const RADIUS: f32 = 5.;
 pub const CELL_SIZE: f32 = 10.;
 
