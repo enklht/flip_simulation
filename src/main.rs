@@ -70,7 +70,16 @@ async fn main() {
 
         render(&particles, &grid);
 
-        draw_text(&format!("{}", get_acceleration()), 12., 32., 30., WHITE);
+        #[cfg(target_arch = "wasm32")]
+        unsafe {
+            draw_text(
+                &format!("{}, {}, {}", get_accel_x(), get_accel_y(), get_accel_z()),
+                12.,
+                32.,
+                30.,
+                WHITE,
+            );
+        }
 
         next_frame().await;
     }
