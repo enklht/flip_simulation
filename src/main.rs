@@ -9,6 +9,8 @@ const CELL_SIZE: f32 = 10.;
 const OVER_RELAXATION: f32 = 1.9;
 const DENSITY_STIFFNESS: f32 = 1.;
 const FLIP_RATIO: f32 = 0.9;
+const SEPARATION_STEPS: usize = 3;
+const INCOMPLESSIBILITY_STEPS: usize = 5;
 
 struct Particle {
     pos: Vec2,
@@ -102,7 +104,7 @@ fn push_particles_apart(particles: &mut [Particle]) {
         map.entry(cell).or_default().push(i);
     }
 
-    for _ in 0..3 {
+    for _ in 0..SEPARATION_STEPS {
         for i in 0..particles.len() {
             let cell = (
                 (particles[i].pos.x / CELL_SIZE).floor() as usize,
@@ -179,15 +181,15 @@ fn particles_to_grid(particles: &[Particle], grid: &mut MacGrid) {
         let x = p.pos.x / CELL_SIZE;
         let y = p.pos.y / CELL_SIZE - 0.5;
 
-        let i0 = x.floor() as isize;
-        let j0 = y.floor() as isize;
+        let i0 = x.floor() as i32;
+        let j0 = y.floor() as i32;
 
         for di in 0..=1 {
             for dj in 0..=1 {
                 let i = i0 + di;
                 let j = j0 + dj;
 
-                if i < 0 || j < 0 || i > grid.nx as isize || j >= grid.ny as isize {
+                if i < 0 || j < 0 || i > grid.nx as i32 || j >= grid.ny as i32 {
                     continue;
                 }
 
@@ -205,15 +207,15 @@ fn particles_to_grid(particles: &[Particle], grid: &mut MacGrid) {
         let x = p.pos.x / CELL_SIZE - 0.5;
         let y = p.pos.y / CELL_SIZE;
 
-        let i0 = x.floor() as isize;
-        let j0 = y.floor() as isize;
+        let i0 = x.floor() as i32;
+        let j0 = y.floor() as i32;
 
         for di in 0..=1 {
             for dj in 0..=1 {
                 let i = i0 + di;
                 let j = j0 + dj;
 
-                if i < 0 || j < 0 || i >= grid.nx as isize || j > grid.ny as isize {
+                if i < 0 || j < 0 || i >= grid.nx as i32 || j > grid.ny as i32 {
                     continue;
                 }
 
@@ -246,15 +248,15 @@ fn compute_particle_density(particles: &[Particle], grid: &mut MacGrid) {
         let x = p.pos.x / CELL_SIZE - 0.5;
         let y = p.pos.y / CELL_SIZE - 0.5;
 
-        let i0 = x.floor() as isize;
-        let j0 = y.floor() as isize;
+        let i0 = x.floor() as i32;
+        let j0 = y.floor() as i32;
 
         for di in 0..=1 {
             for dj in 0..=1 {
                 let i = i0 + di;
                 let j = j0 + dj;
 
-                if i < 0 || j < 0 || i >= grid.nx as isize || j >= grid.ny as isize {
+                if i < 0 || j < 0 || i >= grid.nx as i32 || j >= grid.ny as i32 {
                     continue;
                 }
 
@@ -295,8 +297,8 @@ fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32],
         let x = p.pos.x / CELL_SIZE;
         let y = p.pos.y / CELL_SIZE - 0.5;
 
-        let i0 = x.floor() as isize;
-        let j0 = y.floor() as isize;
+        let i0 = x.floor() as i32;
+        let j0 = y.floor() as i32;
 
         let mut ux = 0.;
         let mut ux_prev = 0.;
@@ -306,7 +308,7 @@ fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32],
                 let i = i0 + di;
                 let j = j0 + dj;
 
-                if i < 0 || j < 0 || i > grid.nx as isize || j >= grid.ny as isize {
+                if i < 0 || j < 0 || i > grid.nx as i32 || j >= grid.ny as i32 {
                     continue;
                 }
 
@@ -324,8 +326,8 @@ fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32],
         let x = p.pos.x / CELL_SIZE - 0.5;
         let y = p.pos.y / CELL_SIZE;
 
-        let i0 = x.floor() as isize;
-        let j0 = y.floor() as isize;
+        let i0 = x.floor() as i32;
+        let j0 = y.floor() as i32;
 
         let mut vy = 0.;
         let mut vy_prev = 0.;
@@ -335,7 +337,7 @@ fn grid_to_particles(particles: &mut [Particle], grid: &MacGrid, u_prev: &[f32],
                 let i = i0 + di;
                 let j = j0 + dj;
 
-                if i < 0 || j < 0 || i >= grid.nx as isize || j > grid.ny as isize {
+                if i < 0 || j < 0 || i >= grid.nx as i32 || j > grid.ny as i32 {
                     continue;
                 }
 
@@ -384,7 +386,7 @@ fn solve_incompressibility(grid: &mut MacGrid) {
     let iu = |i, j| i + j * (nx + 1);
     let iv = |i, j| i + j * nx;
 
-    for _ in 0..5 {
+    for _ in 0..INCOMPLESSIBILITY_STEPS {
         for j in 0..grid.ny {
             for i in 0..grid.nx {
                 if grid.cell_type[i + j * nx] != CellType::Water {
