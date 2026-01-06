@@ -34,7 +34,7 @@
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
     <script>
         let accel_x = 0.0;
-        let accel_y = 0.0;
+        let accel_y = -10.0;
         let accel_z = 0.0;
 
         async function start() {
@@ -56,7 +56,7 @@
                 const g = event.accelerationIncludingGravity;
                 if (event.accelerationIncludingGravity) {
                     accel_x = g.x ?? 0.0;
-                    accel_y = g.y ?? 0.0;
+                    accel_y = g.y ?? -10.0;
                     accel_z = g.z ?? 0.0;
                 }
             });

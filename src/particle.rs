@@ -51,10 +51,19 @@ pub fn push_particles_apart(particles: &mut [Particle]) {
                             continue;
                         }
 
-                        let s = 0.5 * (2. * RADIUS - d) / d;
+                        let n = delta / d;
+                        let s = 0.5 * (2. * RADIUS - d);
 
-                        particles[i].pos -= delta * s;
-                        particles[j].pos += delta * s;
+                        particles[i].pos -= n * s;
+                        particles[j].pos += n * s;
+
+                        let rel_vel = particles[j].vel - particles[i].vel;
+                        let vn = rel_vel.dot(n);
+                        if vn < 0. {
+                            let impulse = 0.5 * vn * n;
+                            particles[i].vel += impulse;
+                            particles[j].vel -= impulse;
+                        }
                     }
                 }
             }
@@ -63,26 +72,26 @@ pub fn push_particles_apart(particles: &mut [Particle]) {
 }
 
 pub fn handle_particle_collisions(particles: &mut [Particle], grid: &MacGrid) {
-    for p in particles {
-        let min_water_x = CELL_SIZE + RADIUS;
-        let max_water_x = (grid.nx - 1) as f32 * CELL_SIZE - RADIUS;
-        let min_water_y = CELL_SIZE + RADIUS;
-        let max_water_y = (grid.ny - 1) as f32 * CELL_SIZE - RADIUS;
+    let min_x = CELL_SIZE + RADIUS;
+    let max_x = (grid.nx - 1) as f32 * CELL_SIZE - RADIUS;
+    let min_y = CELL_SIZE + RADIUS;
+    let max_y = (grid.ny - 1) as f32 * CELL_SIZE - RADIUS;
 
-        if p.pos.x < min_water_x {
-            p.pos.x = min_water_x;
+    for p in particles {
+        if p.pos.x < min_x {
+            p.pos.x = min_x;
             p.vel.x = 0.;
         }
-        if p.pos.x > max_water_x {
-            p.pos.x = max_water_x;
+        if p.pos.x > max_x {
+            p.pos.x = max_x;
             p.vel.x = 0.;
         }
-        if p.pos.y < min_water_y {
-            p.pos.y = min_water_y;
+        if p.pos.y < min_y {
+            p.pos.y = min_y;
             p.vel.y = 0.;
         }
-        if p.pos.y > max_water_y {
-            p.pos.y = max_water_y;
+        if p.pos.y > max_y {
+            p.pos.y = max_y;
             p.vel.y = 0.;
         }
     }
@@ -92,8 +101,8 @@ pub fn spawn_particles(n: usize) -> Vec<Particle> {
     let mut particles = Vec::with_capacity(n);
 
     for i in 0..n {
-        let x = 100. + (i as f32 % 50.) * CELL_SIZE;
-        let y = 50. + (i as f32 / 50.).floor() * CELL_SIZE;
+        let x = 100. + (i as f32 % 50.) * 2. * RADIUS;
+        let y = 50. + (i as f32 / 50.).floor() * 2. * RADIUS;
 
         particles.push(Particle {
             pos: vec2(x, y),
