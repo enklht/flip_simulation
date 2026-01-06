@@ -69,6 +69,8 @@ async fn main() {
 
         render(&particles, &grid);
 
+        draw_text(&format!("{}", get_acceleration()), 12., 32., 30., WHITE);
+
         next_frame().await;
     }
 }
