@@ -25,7 +25,7 @@ unsafe extern "C" {
 fn get_acceleration() -> Vec2 {
     #[cfg(target_arch = "wasm32")]
     unsafe {
-        vec2(get_accel_x() as f32 * 100., -get_accel_y() as f32 * 100.)
+        vec2(get_accel_x() as f32 * 200., -get_accel_y() as f32 * 200.)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -38,7 +38,7 @@ fn get_acceleration() -> Vec2 {
 async fn main() {
     let (mut w, mut h) = screen_size();
 
-    let mut particles = spawn_particles(10000);
+    let mut particles = spawn_particles(5000);
     let mut grid = MacGrid::new(w, h);
 
     loop {
