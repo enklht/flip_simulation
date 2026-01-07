@@ -40,8 +40,15 @@
     <script src="https://not-fl3.github.io/miniquad-samples/mq_js_bundle.js"></script>
     <script>
       let accel_x = 0.0;
-      let accel_y = -10.0;
+      let accel_y = 10.0;
       let accel_z = 0.0;
+
+      function isIOS() {
+        return (
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+        );
+      }
 
       async function start() {
         document.getElementById("start").remove();
@@ -60,10 +67,16 @@
 
         window.addEventListener("devicemotion", (event) => {
           const g = event.accelerationIncludingGravity;
-          if (event.accelerationIncludingGravity) {
-            accel_x = g.x ?? 0.0;
-            accel_y = g.y ?? -10.0;
-            accel_z = g.z ?? 0.0;
+          if (!g) return;
+
+          accel_x = g.x ?? 0.0;
+          accel_y = g.y ?? 10.0;
+          accel_z = g.z ?? 0.0;
+
+          if (isIOS()) {
+            accel_x *= -1;
+            accel_y *= -1;
+            accel_z *= -1;
           }
         });
 
