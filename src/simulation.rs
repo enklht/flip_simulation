@@ -1,6 +1,7 @@
 use crate::constants::{
-    CELL_SIZE, DENSITY_STIFFNESS, FLIP_RATIO, INCOMPLESSIBILITY_STEPS, OVER_RELAXATION,
+    CELL_SIZE, DENSITY_STIFFNESS, DT, FLIP_RATIO, INCOMPLESSIBILITY_STEPS, OVER_RELAXATION,
 };
+use crate::get_acceleration;
 use crate::grid::{CellType, MacGrid, b2f};
 use crate::particle::Particle;
 
@@ -196,9 +197,16 @@ pub fn grid_to_particles(
         }
 
         let pic = macroquad::prelude::vec2(ux, vy);
-        let delta = macroquad::prelude::vec2(ux - ux_prev, vy - vy_prev);
-        p.vel = (1. - FLIP_RATIO) * pic + FLIP_RATIO * (p.vel + delta);
+        let flip = p.vel + macroquad::prelude::vec2(ux - ux_prev, vy - vy_prev);
+        p.vel = (1. - FLIP_RATIO) * pic + FLIP_RATIO * flip;
     }
+}
+
+pub fn apply_gravity(grid: &mut MacGrid) {
+    let g = get_acceleration() * DT;
+
+    grid.u.iter_mut().for_each(|u| *u += g.x);
+    grid.v.iter_mut().for_each(|v| *v += g.y);
 }
 
 pub fn solve_incompressibility(grid: &mut MacGrid) {

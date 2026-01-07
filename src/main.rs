@@ -8,11 +8,12 @@ mod simulation;
 
 use grid::MacGrid;
 use particle::{
-    handle_particle_collisions, integrate_particles, push_particles_apart, spawn_particles,
+    advect_particles, handle_particle_collisions, push_particles_apart, spawn_particles,
 };
 use renderer::render;
 use simulation::{
-    compute_particle_density, grid_to_particles, particles_to_grid, solve_incompressibility,
+    apply_gravity, compute_particle_density, grid_to_particles, particles_to_grid,
+    solve_incompressibility,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -23,15 +24,19 @@ unsafe extern "C" {
 }
 
 fn get_acceleration() -> Vec2 {
-    #[cfg(target_arch = "wasm32")]
-    unsafe {
-        vec2(get_accel_x() as f32 * 200., -get_accel_y() as f32 * 200.)
-    }
+    let acc = {
+        #[cfg(target_arch = "wasm32")]
+        unsafe {
+            vec2(get_accel_x() as f32, -get_accel_y() as f32)
+        }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        vec2(0., 1000.)
-    }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            vec2(0., 10.)
+        }
+    };
+
+    acc * 3000.
 }
 
 #[macroquad::main("FLIP")]
@@ -53,11 +58,12 @@ async fn main() {
         }
         grid.clear();
 
-        integrate_particles(&mut particles);
+        advect_particles(&mut particles);
         push_particles_apart(&mut particles);
         handle_particle_collisions(&mut particles, &grid);
 
         particles_to_grid(&particles, &mut grid);
+        apply_gravity(&mut grid);
 
         compute_particle_density(&particles, &mut grid);
 
@@ -69,17 +75,6 @@ async fn main() {
         grid_to_particles(&mut particles, &grid, &u_prev, &v_prev);
 
         render(&particles, &grid);
-
-        // #[cfg(target_arch = "wasm32")]
-        // unsafe {
-        //     draw_text(
-        //         &format!("{}, {}, {}", get_accel_x(), get_accel_y(), get_accel_z()),
-        //         12.,
-        //         32.,
-        //         30.,
-        //         WHITE,
-        //     );
-        // }
 
         next_frame().await;
     }

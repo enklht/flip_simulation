@@ -9,11 +9,8 @@ pub struct Particle {
     pub vel: Vec2,
 }
 
-pub fn integrate_particles(particles: &mut [Particle]) {
-    for p in particles {
-        p.vel += crate::get_acceleration() * DT;
-        p.pos += p.vel * DT;
-    }
+pub fn advect_particles(particles: &mut [Particle]) {
+    particles.iter_mut().for_each(|p| p.pos += p.vel * DT);
 }
 
 pub fn push_particles_apart(particles: &mut [Particle]) {
