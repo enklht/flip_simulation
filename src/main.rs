@@ -36,14 +36,14 @@ fn get_acceleration() -> Vec2 {
         }
     };
 
-    acc * 3000.
+    acc * 5000.
 }
 
 #[macroquad::main("FLIP")]
 async fn main() {
     let (mut w, mut h) = screen_size();
 
-    let mut particles = spawn_particles(5000);
+    let mut particles = spawn_particles(10000);
     let mut grid = MacGrid::new(w, h);
 
     loop {
