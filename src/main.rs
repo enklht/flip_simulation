@@ -47,8 +47,6 @@ async fn main() {
     let mut grid = MacGrid::new(w, h);
 
     loop {
-        clear_background(BLACK);
-
         let new_size = screen_size();
         if (w, h) != new_size {
             (w, h) = new_size;
@@ -74,7 +72,7 @@ async fn main() {
 
         grid_to_particles(&mut particles, &grid, &u_prev, &v_prev);
 
-        render(&particles, &grid);
+        render(&particles);
 
         next_frame().await;
     }
