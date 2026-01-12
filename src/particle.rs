@@ -13,8 +13,11 @@ pub fn advect_particles(particles: &mut [Particle]) {
     particles.iter_mut().for_each(|p| p.pos += p.vel * DT);
 }
 
-pub fn push_particles_apart(particles: &mut [Particle]) {
-    let mut map = HashMap::<(usize, usize), Vec<usize>>::new();
+pub fn push_particles_apart(
+    particles: &mut [Particle],
+    map: &mut HashMap<(usize, usize), Vec<usize>>,
+) {
+    map.clear();
 
     for (i, p) in particles.iter().enumerate() {
         let cell = (

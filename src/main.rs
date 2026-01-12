@@ -1,4 +1,5 @@
 use macroquad::{miniquad::window::screen_size, prelude::*};
+use std::collections::HashMap;
 
 mod constants;
 mod grid;
@@ -45,6 +46,7 @@ async fn main() {
 
     let mut particles = spawn_particles(10000);
     let mut grid = MacGrid::new(w, h);
+    let mut map = HashMap::<(usize, usize), Vec<usize>>::new();
 
     loop {
         let new_size = screen_size();
@@ -57,7 +59,7 @@ async fn main() {
         grid.clear();
 
         advect_particles(&mut particles);
-        push_particles_apart(&mut particles);
+        push_particles_apart(&mut particles, &mut map);
         handle_particle_collisions(&mut particles, &grid);
 
         particles_to_grid(&particles, &mut grid);

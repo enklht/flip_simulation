@@ -43,6 +43,13 @@
       let accel_y = 10.0;
       let accel_z = 0.0;
 
+      function isIOS() {
+        return (
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+        );
+      }
+
       async function start() {
         document.getElementById("start").remove();
 
@@ -60,23 +67,17 @@
 
         window.addEventListener("devicemotion", (event) => {
           const g = event.accelerationIncludingGravity;
-          if (g) {
-            accel_x = g.x ?? 0.0;
-            accel_y = g.y ?? 10.0;
-            accel_z = g.z ?? 0.0;
+          if (!g) return;
+
+          accel_x = g.x ?? 0.0;
+          accel_y = g.y ?? 10.0;
+          accel_z = g.z ?? 0.0;
+
+          if (isIOS()) {
+            accel_x *= -1;
+            accel_y *= -1;
+            accel_z *= -1;
           }
-
-          const unknownDeviceMotionEvent = event as unknwon;
-          const hasRequestPermission =
-            typeof unknownDeviceMotionEvent === "function" &&
-              unknownDeviceMotionEvent !== null &&
-              "requestPermission" in unknownDeviceMotionEvent &&
-              typeof unknownDeviceMotionEvent.requestPermission === "function";
-
-          if (hasRequestPermission)
-            accel_x = -accel_x;
-            accel_y = -accel_y;
-            accel_z = -accel_z;
         });
 
         register_plugin = function (importObject) {
